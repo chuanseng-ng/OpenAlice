@@ -486,6 +486,15 @@ export class RequestBridge extends DefaultEWrapper {
   // ---- Error routing ----
 
   override error(reqId: number, _errorTime: number, errorCode: number, errorString: string): void {
+    // 10167 is a NOTICE, not a failure: "market data is not subscribed —
+    // displaying delayed market data". The delayed ticks follow it, and
+    // tickPrice/tickSize already map the DELAYED_* variants onto the same
+    // snapshot fields. Rejecting here discards data that is already on the
+    // wire. Its neighbours stay fatal on purpose — 10168 (delayed NOT
+    // enabled), 10089 (needs API subscription) and 10197 (competing live
+    // session) all mean no ticks are coming at all.
+    if (errorCode === 10167) return
+
     // Informational warnings live in the 2100-2200 band (data farm
     // status etc.). The old `>= 2000` blanket also swallowed the 10xxx
     // REAL errors (10089 no-subscription, 10197 competing session...) —
