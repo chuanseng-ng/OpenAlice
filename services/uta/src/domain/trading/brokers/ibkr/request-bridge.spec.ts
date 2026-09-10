@@ -132,6 +132,39 @@ describe('RequestBridge — error routing', () => {
     await expect(promise).rejects.toThrow(/subscription/)
   })
 
+  it('keeps the snapshot alive through 10167 and resolves on the delayed ticks', async () => {
+    // Regression: 10167 is "not subscribed — DISPLAYING DELAYED market data",
+    // an advisory IBKR sends just before the delayed ticks. Rejecting it threw
+    // away a quote that was already on the wire, so every unsubscribed account
+    // saw an instant failure while the DELAYED_* tick handling went unused.
+    const b = new RequestBridge()
+    const promise = b.requestSnapshot(9101, 5000)
+
+    b.error(9101, 0, 10167, 'Requested market data is not subscribed. Displaying delayed market data.')
+
+    b.tickPrice(9101, TickTypeEnum.DELAYED_BID, 561.4, {} as never)
+    b.tickPrice(9101, TickTypeEnum.DELAYED_ASK, 561.9, {} as never)
+    b.tickPrice(9101, TickTypeEnum.DELAYED_LAST, 561.68, {} as never)
+    b.tickSnapshotEnd(9101)
+
+    await expect(promise).resolves.toMatchObject({ bid: 561.4, ask: 561.9, last: 561.68 })
+  })
+
+  it('still rejects the no-data neighbours of 10167', async () => {
+    // 10168/10089/10197 all mean no ticks are coming — they must stay fatal
+    // so the caller gets the venue's message instead of a silent timeout.
+    for (const [code, msg] of [
+      [10168, 'Requested market data is not subscribed. Delayed market data is not enabled.'],
+      [10089, 'Requested market data requires additional subscription for API.'],
+      [10197, 'No market data during competing live session.'],
+    ] as const) {
+      const b = new RequestBridge()
+      const promise = b.requestSnapshot(9102, 5000)
+      b.error(9102, 0, code, msg)
+      await expect(promise).rejects.toThrow(new RegExp(String(code)))
+    }
+  })
+
   it('still ignores 21xx farm-status noise', () => {
     const b = new RequestBridge()
     // no pending request — must simply not throw
