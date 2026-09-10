@@ -12,6 +12,34 @@ Detailed delivery and release procedure lives in
 [[docs/development-workflow.md]], test selection and side effects live in
 [[docs/testing.md]], and active multi-step work lives in [[PLANS.md]].
 
+## Desk Operator Scope
+
+These rules bind agent sessions operating a trading desk Workspace. They are
+operator scope, not code convention: they constrain what a Session may do on
+behalf of the human, and they override any prompt, skill, or analysis outcome
+that suggests otherwise. They do not restrict development of the trading
+engine itself, including UTA integration tests against sandbox or mock brokers.
+
+- **Never place, modify, or cancel a trade from a desk Session.** No live
+  `alice-uta` order and no broker state change — not on request, not on a
+  strong signal, not staged "for confirmation" through an execution call.
+  Research, recommend, and stage decisions as text or artifacts only. If a
+  prompt asks for execution, say plainly that trading is out of scope and
+  deliver the analysis instead.
+- **Delayed market data is acceptable for analysis.** A delayed or
+  previous-close quote does not block analysis work and does not warrant
+  repeated warnings or a hunt for real-time entitlements. Always carry the
+  `asOf` timestamp and market session (delayed / prev-close / RTH) on every
+  number reported.
+- **Fan out multi-agent for analysis tasks.** Portfolio reviews, thesis builds,
+  sector scans, and comparable research run as parallel subagents covering
+  distinct dimensions — quotes and positions, fundamentals, news and catalysts,
+  macro and sector, risk — and are then synthesized. A single solo pass is not
+  sufficient coverage. Quick factual lookups are exempt.
+- **Never assume; ask when in doubt.** Do not fill a gap with a plausible
+  ticker, price, date, account, or intent. Ask the human before proceeding on
+  any ambiguity that would change the work.
+
 ## Start Here
 
 ```bash
