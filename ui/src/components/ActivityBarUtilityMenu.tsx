@@ -1,8 +1,10 @@
-import { Ellipsis, Laptop, Moon, Plug, Settings, Sun } from 'lucide-react'
+import aliceWave from '../../../default/stickers/alice-color/wave.png'
+import { Ellipsis, Laptop, Moon, Plug, Settings, Sun, Ghost } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useThemeStore, type AppTheme } from '../theme/store'
+import { useDesktopCompanion } from '../hooks/useDesktopCompanion'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +45,7 @@ export function ActivityBarUtilityMenu({
   const theme = useThemeStore((state) => state.theme)
   const setTheme = useThemeStore((state) => state.setTheme)
   const [menuOpen, setMenuOpen] = useState(false)
+  const companion = useDesktopCompanion(menuOpen)
   const CurrentThemeIcon = THEME_MODES.find((item) => item.mode === theme)?.Icon ?? Laptop
 
   return (
@@ -65,10 +68,10 @@ export function ActivityBarUtilityMenu({
         )}
       >
         <span aria-hidden className={`${denseRail ? 'size-6' : 'size-7'} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-sidebar-foreground/15 bg-sidebar-accent/60 p-0.5`}>
-          <img src="/alice.ico" alt="" draggable={false} className="size-full object-contain" />
+          <img src={aliceWave} alt="" draggable={false} className="size-full origin-[50%_38%] scale-[1.8] object-contain" />
         </span>
         {!compactRail && (
-          <span className="min-w-0 flex-1 truncate font-medium">{t('nav.yourAlice')}</span>
+          <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{t('nav.yourAlice')}</span>
         )}
         {connectorWarnings > 0 && (
           <span
@@ -87,6 +90,17 @@ export function ActivityBarUtilityMenu({
         sideOffset={6}
         className="w-[208px] max-w-[calc(100vw-1rem)] rounded-xl border border-border/70 bg-popover p-1.5 shadow-lg ring-0"
       >
+        {companion.visible !== null && (
+          <DropdownMenuItem
+            onClick={() => { void companion.toggle() }}
+            disabled={companion.pending}
+            className="min-h-9 cursor-pointer gap-2 px-2.5 text-[12px]"
+          >
+            <Ghost size={15} strokeWidth={1.75} aria-hidden />
+            <span>{t(companion.visible ? 'nav.hideCompanion' : 'nav.showCompanion')}</span>
+          </DropdownMenuItem>
+        )}
+        {companion.failed && <div role="alert" className="px-2.5 py-1 text-xs text-destructive">{t('nav.companionError')}</div>}
         <DropdownMenuItem
           onClick={onOpenSettings}
           className="min-h-9 cursor-pointer gap-2 px-2.5 text-[12px]"

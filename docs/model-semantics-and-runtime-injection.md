@@ -217,9 +217,10 @@ explicit credential, model, or effort choice into one immutable, secret-free
 object. An optional sibling `displayName` is the mutable coworker nametag
 and is not part of this binding. The global resume registry stores identity,
 lifecycle, and native-session mapping only; it hydrates the binding and
-nametag from the Workspace file when Alice starts and never flushes either
-into `resume-identities.json`. The binding is
-then projected on every launch of that Session:
+nametag from the Workspace file when Alice starts, periodically reconciles
+valid external dossier edits, and never flushes either into
+`resume-identities.json`. The binding is then projected on every launch of
+that Session:
 interactive TUI, structured Web surface, headless Issue turn, and exact resume.
 It is not a headless-only override.
 
@@ -233,8 +234,11 @@ the Workspace sidebar, and interactive CLI/API starts use `interactive`;
 Issues, schedules, automation, and headless CLI/API starts use `headless`. An explicit
 Quick Chat, sidebar, Issue, CLI, or API runtime choice wins for that one
 Session. Otherwise OpenAlice uses the mode's fixed Agent, then its recent
-Agent, then the legacy `.alice/workspace.json` `defaultAgent`, then the
-installation-wide `workspaceDefaultAgent`. If none resolves to a registered
+Agent, then the installation-wide `workspaceDefaultAgent`. Headless dispatch
+first uses its mode defaults, then `issueDefaultAgent`, then the interactive
+fallback. `.alice/workspace.json` contains display metadata only; migration
+0042 moves its shipped `defaultAgent` to the interactive fixed default without
+overwriting an existing fixed default. If none resolves to a registered
 Agent runtime, Alice falls back to the first registered runtime. Headless mode
 defaults must resolve to a headless-capable Agent.
 
@@ -582,3 +586,16 @@ namespaces that many remote containers cannot create.
 Do not implement this by rewriting global user configuration. Native runtime
 enterprise policies and OS permissions remain authoritative. UTA still owns
 trading permissions; these launch settings do not change its trading mode.
+
+
+### CLI conversation selection
+
+`conversation create` accepts credential/model/effort overrides for a new
+Session; `conversation ask` accepts the same optional dimensions for an idle
+existing Session. Credential is a vault slug or explicit native access, never
+secret material. Follow-up edits patch the stored binding under the headless
+execution claim and do not consult Workspace defaults. Changing credential
+clears inherited model/effort; omitted fields otherwise retain the Session's
+selection. Runtime identity remains fixed. Web paused-Session editing and CLI
+selection both resolve through `createSessionRuntimeBinding` and persist via
+`replaceRuntimeBinding`.

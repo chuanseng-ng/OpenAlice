@@ -386,7 +386,9 @@ otherwise the historical wrapper around the comment. The final assistant respons
 reply comment, linked by `replyTo`; delivery state stays on the source comment.
 While that delivery is `pending`, compact turn progress (semantic text blocks
 and tool status, never tool payloads) may ride on the same record so Inbox,
-Issue, and Connector can watch the turn without each parsing headless logs.
+and Issue can watch the turn without each parsing headless logs. Connector
+consumes the Task communication contract through the execution-owned delivery
+projector, independently of this comment snapshot.
 This bounded snapshot is live transport, not durable transcript history, and
 is removed from the task record at terminal state.
 
@@ -791,3 +793,64 @@ shapes should point back here rather than restating the rules differently.
 | `src/workspaces/issues/board.ts` | Issue/run/Inbox projections |
 | `src/services/uta-client/` | Alice -> UTA decision-correlation boundary |
 | `services/uta/src/domain/trading/` | Broker operation and execution authority |
+
+
+### Conversation failure diagnostics
+
+`conversation read`, `await`, `collect`, and `ask --await` return a concise
+`error` for failed/interrupted tasks, plus recorded `exitCode`, `signal`,
+`killed`, and `processStarted` fields when available. Terminal structured
+errors take priority over stderr; launch failures and watchdog termination
+retain their explicit causes. Successful turns do not promote warnings or
+recovered errors into a failure.
+
+`conversation read --task-id <id> --mode detailed` also exposes the last 16 KiB
+of stderr for failed/interrupted tasks, with `stderrTruncated` indicating a
+clipped log. Existing tasks can recover this diagnostic from their log file;
+missing logs still leave an exit/signal or generic failure explanation. Logs
+remain diagnostics, never assistant replies.
+
+
+### Explicit creation and follow-up selection
+
+`alice conversation create --ws-id <id> | --harness <name> --prompt <text>`
+creates a new Session and dispatches its first turn. `conversation ask
+--resume-id <id>` continues an existing Session; author addressing remains on
+`ask`. Legacy `ask --ws-id/--harness` remains supported for copied Skills.
+
+Both accept optional `credential` (vault slug), `credentialSource: native`,
+`model`, and `effort`. Credential forms are mutually exclusive. Creation merges
+with headless Workspace preferences. Exact follow-up patches only the Session's
+binding under the execution claim: omitted fields retain that binding, changing
+credential discards inherited model/effort, and explicit fields persist for
+subsequent turns. Busy Sessions reject before editing the binding. Runtime
+identity cannot change. No new persisted format is introduced.
+
+## Dispatch communication contract
+
+Each new headless Task stores a validated `communication` snapshot, constructed
+once by `buildDispatchCommunication` in `src/workspaces/dispatch-communication.ts`.
+It separates origin, resolved execution target, optional business subject, and
+reply ownership (`caller`, `issue-comment`, `issue-run`, or `none`). Conversation
+dispatch logs store that same snapshot. A Session's previous `parentTaskId` is
+still continuation lineage; the caller's execution belongs to `origin.execution`.
+Fresh-owner comment recruitment carries the original source through the scanner.
+
+An Issue subject is not permission to publish. Internal `issue ask --owner`,
+`--creator`, and `--run-id` return to their caller even when the addressed Session
+owns a Connector desk. Explicit comments remain public desk contributions.
+Only an admitted comment reply or desk Issue run receives an external delivery
+snapshot from Alice. It fixes the connector, conversation/automation semantics,
+and execution Workspace for file resolution. The Issue may live elsewhere.
+Changing or deleting an Issue during a turn cannot redirect its output.
+
+Task progress and completion consume this snapshot. Comment/history persistence
+is separate from transport completion: empty answers, failed runs, interrupted
+runs, and failed comment writes still end admitted external activity. A live
+turn uses its taskId at every stage; commentId identifies the discussion edge,
+not a second transport turn. Old trigger/inquiry fields remain business indexes
+for scheduling and provenance; they are not outbound routing selectors.
+
+Migration `0044_dispatch_communication` backs up the old registry and labels old
+records unknown with no delivery destination. Missing/invalid communication
+never gets an inferred Connector route. Append-only history is not rewritten.

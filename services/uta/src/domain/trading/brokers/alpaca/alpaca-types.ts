@@ -9,6 +9,10 @@ export interface AlpacaBrokerConfig {
 // ==================== Alpaca SDK raw shapes ====================
 
 export interface AlpacaBrokerRaw {
+  options_approved_level?: number
+  options_trading_level?: number
+  trading_blocked?: boolean
+  account_blocked?: boolean
   cash: string
   portfolio_value: string
   equity: string
@@ -18,6 +22,7 @@ export interface AlpacaBrokerRaw {
 }
 
 export interface AlpacaPositionRaw {
+  asset_class?: string
   symbol: string
   side: string
   qty: string
@@ -30,6 +35,7 @@ export interface AlpacaPositionRaw {
 }
 
 export interface AlpacaOrderRaw {
+  asset_class?: string
   id: string
   symbol: string
   side: string

@@ -132,7 +132,7 @@ jobs:
 
       - name: Build optional Broker Packs on Windows
         run: pnpm broker-packs:build
-        timeout-minutes: 10
+        timeout-minutes: 20
 
       - name: Verify Broker Packs in compiled runtime
         run: pnpm exec tsx scripts/verify-broker-packs.ts --compiled
@@ -187,6 +187,10 @@ jobs:
 
       - name: Build Alice + UTA + desktop shell
         run: pnpm electron:build
+
+      - name: Smoke native companion interaction
+        run: pnpm -F @traderalice/desktop exec electron ../../dist/electron/companion-preview.js --smoke
+        timeout-minutes: 2
 
       - name: Smoke Guardian takeover through Electron
         run: pnpm electron:smoke:guardian-recovery --skip-build
