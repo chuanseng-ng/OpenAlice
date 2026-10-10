@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { getProductVersion } from '@traderalice/update-lifecycle/node'
 /**
  * Guardian — built-runtime entry, used by source and native CLI launches.
  *
@@ -41,6 +42,7 @@ import {
   normalizeProcessExitCode,
   RestartBackoff,
   takeoverRequested,
+  proxyEnvFromRules,
 } from '@traderalice/guardian-runtime'
 import {
   planProdPorts,
@@ -73,6 +75,10 @@ const ALICE_PROJECT = resolveAliceProjectIdentity({
   key: process.env.OPENALICE_PROJECT ?? 'default',
 })
 const ALICE_PROJECT_ENV = aliceProjectEnvironment(ALICE_PROJECT)
+const GUARDIAN_CHILD_ENV = {
+  ...process.env,
+  ...proxyEnvFromRules('', process.env),
+}
 
 function truthyEnv(raw) {
   if (raw === undefined || raw === '') return false
@@ -196,16 +202,8 @@ const connectorRecovery = new RestartBackoff({
     console.warn(`[guardian/prod] Connector recovery attempt ${attempt} in ${delayMs}ms`)
   },
 })
-let RUNTIME_VERSION = 'dev'
+let RUNTIME_VERSION
 
-async function readRuntimeVersion() {
-  try {
-    const manifest = JSON.parse(await readFile(resolve(process.cwd(), 'package.json'), 'utf8'))
-    return typeof manifest.version === 'string' ? manifest.version : 'dev'
-  } catch {
-    return 'dev'
-  }
-}
 
 function runtimeStatus() {
   const owner = guardianRuntimeLock?.owner
@@ -290,7 +288,7 @@ function makeUTASpec() {
   return {
     ...processSpec,
     env: {
-      ...process.env,
+      ...GUARDIAN_CHILD_ENV,
       ...ALICE_PROJECT_ENV,
       OPENALICE_UTA_PORT: String(UTA_PORT),
       OPENALICE_HOME: DATA_HOME,
@@ -325,7 +323,7 @@ function spawnConnector() {
   })
   const child = spawn(spec.cmd, spec.args, {
     env: {
-      ...process.env,
+      ...GUARDIAN_CHILD_ENV,
       ...ALICE_PROJECT_ENV,
       OPENALICE_CONNECTOR_PORT: String(CONNECTOR_PORT),
       OPENALICE_MCP_PORT: String(MCP_PORT),
@@ -359,7 +357,7 @@ function spawnAlice() {
   })
   const child = spawn(spec.cmd, spec.args, {
     env: {
-      ...process.env,
+      ...GUARDIAN_CHILD_ENV,
       ...ALICE_PROJECT_ENV,
       OPENALICE_WEB_PORT: String(WEB_PORT),
       OPENALICE_MCP_PORT: String(MCP_PORT),
@@ -612,7 +610,7 @@ async function initializeRuntimeState() {
   UTA_URL = `http://127.0.0.1:${UTA_PORT}`
   CONNECTOR_URL = `http://127.0.0.1:${CONNECTOR_PORT}`
   utaStatus = SKIP_UTA ? 'disabled' : 'starting'
-  RUNTIME_VERSION = await readRuntimeVersion()
+  RUNTIME_VERSION = getProductVersion()
 }
 
 export async function startGuardianRuntime() {
